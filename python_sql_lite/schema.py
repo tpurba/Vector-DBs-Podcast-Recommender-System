@@ -48,6 +48,4 @@ sql_create_orders_table = """
     );
 """
 
-def get_schema():
-    schema = f"{sql_create_category_table}{sql_create_menu_table}{sql_create_customers_table}{sql_create_employee_table}{sql_create_orders_table}"
-    return schema
+
