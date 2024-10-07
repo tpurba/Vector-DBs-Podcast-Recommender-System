@@ -28,10 +28,10 @@ CREATE TABLE podcast(
 CREATE_SEGMENT_TABLE = """
 CREATE TABLE podcast_segment(
     id VARCHAR(255) PRIMARY KEY,
-    start_time TIMESTAMP NOT NULL,
-    end_time TIMESTAMP NOT NULL,
+    start_time FLOAT NOT NULL,
+    end_time FLOAT NOT NULL,
     content TEXT NOT NULL,
-    embedding BYTEA NOT NULL,
+    embedding FLOAT8[] NOT NULL,
     podcast_id VARCHAR(255),
     FOREIGN KEY (podcast_id) REFERENCES podcast(id)
 );
