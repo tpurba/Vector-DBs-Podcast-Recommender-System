@@ -31,9 +31,9 @@ CREATE TABLE podcast_segment(
     start_time FLOAT NOT NULL,
     end_time FLOAT NOT NULL,
     content TEXT NOT NULL,
-    embedding FLOAT8[] NOT NULL,
-    podcast_id VARCHAR(255),
-    FOREIGN KEY (podcast_id) REFERENCES podcast(id)
+    embedding FLOAT8[],
+    podcast_id VARCHAR(255) NOT NULL,
+    FOREIGN KEY (podcast_id) REFERENCES podcast(id) 
 );
 """
 

@@ -19,10 +19,25 @@ def format_array_for_postgres(embedding):
     return '{' + ','.join(map(str, embedding)) + '}'
 print(CONNECTION)
 
+#Hugging face data 
+ds = load_dataset("Whispering-GPT/lex-fridman-podcast") # this is the file from hugging face 
+# Access the training data
+train_data = ds['train']
+
+id = [entry['id'] for entry in train_data]
+title = [entry['title'] for entry in train_data]
+
+# TODO: Insert into postgres
+#insert to podcast
+data = {'id': id, 'title': title}
+df = pd.DataFrame(data)
+fast_pg_insert(df, CONNECTION, "podcast", ['id', 'title'])
+
 # TODO: Read the embedding files
 # Initialize a list to hold the raw text data and metadata
-podcast_segments = {}
+
 for filename in os.listdir('documents'):
+    podcast_segments = {}
     file_path = os.path.join('documents', filename)
     with open(file_path, 'r', encoding='utf-8') as file:
         #read by line
@@ -40,10 +55,29 @@ for filename in os.listdir('documents'):
                 'start_time': start_time,
                 'end_time': end_time
             }
+        segment_data_non_embedding = {
+            'id': [],
+            'start_time': [],
+            'end_time': [],
+            'content': [],
+            'podcast_id': []
+        }
+        for custom_id, segment_info in podcast_segments.items():
+            # Non-embedding data
+            segment_data_non_embedding['id'].append(custom_id)
+            segment_data_non_embedding['start_time'].append(segment_info["start_time"])
+            segment_data_non_embedding['end_time'].append(segment_info["end_time"])
+            segment_data_non_embedding['content'].append(segment_info["raw_text"])
+            segment_data_non_embedding['podcast_id'].append(segment_info["podcast_id"])
+        df_non_embedding  = pd.DataFrame(segment_data_non_embedding)
+        fast_pg_insert(df_non_embedding, CONNECTION, "podcast_segment", ['id', 'start_time', 'end_time', 'content', 'podcast_id'])
+
+        
 
 # TODO: Read documents files
 for filename in os.listdir('embedding'):
     file_path = os.path.join('embedding', filename)
+    embedding_dictionary = []
     with open(file_path, 'r', encoding='utf-8') as file:
         # Read each line in the JSONL file
         for line in file:
@@ -54,48 +88,14 @@ for filename in os.listdir('embedding'):
             custom_id = data['custom_id']
             embeddings_data = data['response']['body']['data'][0]['embedding']
             #Add the embedding to the corresponding segment in podcast_segments
-            if custom_id in podcast_segments:
-                podcast_segments[custom_id]['embedding'] = embeddings_data
-            else:
-                print(f"Warning: custom_id {custom_id} not found in podcast_segments.")
-
-#Hugging face data 
-ds = load_dataset("Whispering-GPT/lex-fridman-podcast") # this is the file from hugging face 
-# Access the training data
-train_data = ds['train']
-
-id = [entry['id'] for entry in train_data]
-title = [entry['title'] for entry in train_data]
-
-# TODO: Insert into postgres
-#insert to podcast
-data = {'id': id, 'title': title}
-df = pd.DataFrame(data)
-fast_pg_insert(df, CONNECTION, "podcast", ['id', 'title'])
-
-#now that everything is in the dictionary we will construct a datagram for this
-#PROBLEM: Cant do it all in a single go
-#solution break it up into two 
-segment_data = {
-    'id': [],
-    'start_time': [],
-    'end_time': [],
-    'content': [],
-    'embedding': [],
-    'podcast_id': []
-}
-for custom_id, segment_info in podcast_segments.items():
-    segment_data['id'].append(custom_id)
-    segment_data['start_time'].append(segment_info["start_time"])
-    segment_data['end_time'].append(segment_info["end_time"])
-    segment_data['content'].append(segment_info["raw_text"])
-    
-    # Format the embedding for PostgreSQL
-    formatted_embedding = format_array_for_postgres(segment_info["embedding"])
-    segment_data['embedding'].append(formatted_embedding)
-    
-    segment_data['podcast_id'].append(segment_info["podcast_id"])
-
-
-df_segments  = pd.DataFrame(segment_data)
-fast_pg_insert(df_segments , CONNECTION, "podcast_segment", ['id', 'start_time', 'end_time', 'content', 'embedding', 'podcast_id'])
+            embedding_dictionary[custom_id]['embedding'] = embeddings_data
+        segment_data_embedding = {
+            'id': [],
+            'embedding': []
+        }
+        for custom_id, segment_info in podcast_segments.items():
+            formatted_embedding = format_array_for_postgres(segment_info["embedding"])
+            segment_data_embedding['id'].append(custom_id)
+            segment_data_embedding['embedding'].append(formatted_embedding)
+        df_embedding = pd.DataFrame(segment_data_embedding)
+        fast_pg_insert(df_embedding, CONNECTION, "podcast_segment", ['id', 'embedding'])
